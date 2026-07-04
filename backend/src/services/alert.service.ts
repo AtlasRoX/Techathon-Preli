@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { Alert } from '../lib/types';
 import { DeviceService } from './device.service';
+import { getSimulatedTime } from './power.service';
 
 export class AlertService {
   static async getActiveAlerts(): Promise<Alert[]> {
@@ -25,7 +26,7 @@ export class AlertService {
     const rooms = ['drawing-room', 'work-room-1', 'work-room-2'];
     
     // Get simulated or real hour — always evaluated in Asia/Dhaka timezone (UTC+6)
-    const localTime = simulatedTimeStr ? new Date(simulatedTimeStr) : new Date();
+    const localTime = simulatedTimeStr ? new Date(simulatedTimeStr) : await getSimulatedTime();
     // Offset UTC time by 6 hours to get Dhaka local time
     const dhakaTime = new Date(localTime.getTime() + 6 * 60 * 60 * 1000);
     const hour = dhakaTime.getUTCHours();

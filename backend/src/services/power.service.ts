@@ -1,8 +1,12 @@
 import { supabase } from '../lib/supabase';
 
+const BASE_REAL_TIME = new Date('2026-07-04T10:38:47.297Z');
+const BASE_SIM_TIME = new Date('2026-07-04T02:00:00.000Z');
+const SPEED_MULTIPLIER = 120; // 1 real minute = 2 sim hours
+
 export async function getSimulatedTime(): Promise<Date> {
-  // Always return the real current system/world time
-  return new Date();
+  const elapsedRealMs = Date.now() - BASE_REAL_TIME.getTime();
+  return new Date(BASE_SIM_TIME.getTime() + elapsedRealMs * SPEED_MULTIPLIER);
 }
 
 export async function getVoltage(): Promise<number> {

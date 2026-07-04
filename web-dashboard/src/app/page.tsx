@@ -252,12 +252,12 @@ export default function Dashboard() {
     }
   };
 
-  // Get current simulated date/time (now running on 1x real-world speed)
+  // Get current simulated date/time (running on 120x real-world speed)
   const getGetCurrentSimulatedTime = () => {
     if (!simulatedTimeRaw) return new Date();
     const baseDate = new Date(simulatedTimeRaw);
     const elapsedMs = Date.now() - lastFetchTime;
-    return new Date(baseDate.getTime() + elapsedMs);
+    return new Date(baseDate.getTime() + elapsedMs * 120);
   };
 
   // Helper for human relative time
@@ -285,6 +285,15 @@ export default function Dashboard() {
       return '';
     }
   };
+
+  const currentSimTime = getGetCurrentSimulatedTime();
+  const displaySimTime = currentSimTime.toLocaleTimeString('en-US', {
+    timeZone: 'Asia/Dhaka',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
 
   return (
     <div className="lg:h-screen lg:overflow-hidden flex flex-col bg-zinc-50 text-zinc-900 font-sans pb-4 relative selection:bg-zinc-800 selection:text-white">
@@ -348,9 +357,9 @@ export default function Dashboard() {
           <div className="text-right flex flex-col items-end">
             <span className="text-[10px] font-black text-zinc-450 uppercase tracking-widest font-mono flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5 text-zinc-400" />
-              {simulatedTime || '00:00:00 AM'}
+              {displaySimTime || '00:00:00 AM'}
             </span>
-            <div className="text-[9px] text-zinc-400 font-mono mt-1">Real Office Time</div>
+            <div className="text-[9px] text-zinc-400 font-mono mt-1">Simulated Office Time</div>
           </div>
         </div>
 

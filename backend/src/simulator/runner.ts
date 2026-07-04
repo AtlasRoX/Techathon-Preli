@@ -81,8 +81,8 @@ async function logHourlyConsumption(
   devices: DeviceRow[],
   tickSeconds: number // real seconds since last snapshot
 ) {
-  // Real hours elapsed
-  const simHoursElapsed = tickSeconds / 3600;
+  // Simulated hours elapsed (accelerated by 120x)
+  const simHoursElapsed = (tickSeconds * 120) / 3600;
 
   const roomIds = ['drawing-room', 'work-room-1', 'work-room-2'];
   const rows = roomIds.map((roomId) => {
@@ -113,6 +113,15 @@ async function logHourlyConsumption(
   }
 }
 
+const BASE_REAL_TIME = new Date('2026-07-04T10:38:47.297Z');
+const BASE_SIM_TIME = new Date('2026-07-04T02:00:00.000Z');
+const SPEED_MULTIPLIER = 120; // 1 real minute = 2 sim hours
+
+function getSimulatedTimeNow(): Date {
+  const elapsedRealMs = Date.now() - BASE_REAL_TIME.getTime();
+  return new Date(BASE_SIM_TIME.getTime() + elapsedRealMs * SPEED_MULTIPLIER);
+}
+
 // ─────────────────────────────────────────────────────────────────
 // Main simulator
 // ─────────────────────────────────────────────────────────────────
@@ -120,7 +129,7 @@ async function startSimulator() {
   console.log('=======================================================');
   console.log('   Chrono Office — Real-World Device Simulator         ');
   console.log('=======================================================');
-  console.log('Time Mode          : Real-world time (Dhaka timezone)');
+  console.log('Time Mode          : Separate clock (1 minute = 2 hours)');
   console.log('Office Hours       : 9 AM – 5 PM');
   console.log('After Hours        : WR2 devices remain ON (anomaly)');
   console.log('Voltage            : Brownian walk 215 – 225 V AC');
@@ -128,7 +137,7 @@ async function startSimulator() {
   console.log('Logging            : hourly snapshots → consumption_logs');
   console.log('=======================================================');
 
-  const now = new Date();
+  const now = getSimulatedTimeNow();
   console.log(`Start time (Dhaka) : ${now.toLocaleTimeString('en-US', { timeZone: 'Asia/Dhaka' })}`);
 
   // Voltage — Brownian random walk so it feels continuous, not jumpy
@@ -159,7 +168,7 @@ async function startSimulator() {
   while (true) {
     try {
       const tickStartReal = Date.now();
-      const simulatedTime = new Date();
+      const simulatedTime = getSimulatedTimeNow();
       const simDhaka = new Date(simulatedTime.getTime() + 6 * 60 * 60 * 1000);
       const simHour = simDhaka.getUTCHours();
       const isWorkingHours = simHour >= 9 && simHour < 17;
