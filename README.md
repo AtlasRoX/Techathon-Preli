@@ -7,7 +7,7 @@ It features:
 * **Discord Bot**: Provides a conversational interface to check room status, device power consumption, and recent logs, with proactive warnings when anomalies are detected.
 * **Intelligent LLM Chat**: Integration with NVIDIA NIM (Nemotron-3 Super 120B) or Google Gemini API to query live office statuses conversationally.
 * **Hardware Simulation Layer**: A hyper-realistic simulator replicating Dhaka office working hours, Brownian voltage walk, staggering, power flicker, and simulated employee interactions.
-* **Physical Hardware Blueprint**: Complete circuit schematic design using an ESP32 microcontroller, opto-isolated relay channels, ACS712 current sensors, and AC 220V mains wiring.
+* **Physical Hardware Blueprint**: Complete circuit schematic design using an Arduino Uno microcontroller, opto-isolated relay channels, ACS712 current sensors, and AC 220V mains wiring.
 
 ---
 
@@ -22,24 +22,14 @@ It features:
 
 ## 🚀 System Architecture
 
-Chrono Office integrates **4 distinct architectural patterns** across its hardware and software layers. The complete UML models for all layers are defined using PlantUML syntax.
+Chrono Office integrates **4 distinct architectural patterns** across its hardware and software layers. The complete UML models for all layers are defined using PlantUML syntax in the root [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml) file.
 
 ### 🔍 How to View and Render the UML Diagrams
-We provide both a master PlantUML file containing all diagrams, as well as separate, standalone files for each view (highly recommended for compatibility with older compilers).
-
 * **Master UML File**: [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml)
-* **Modular UML Files (by type)**:
-  1. **Deployment Architecture**: [uml/1_high_level_deployment.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/1_high_level_deployment.puml)
-  2. **Database ERD**: [uml/2_database_erd.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/2_database_erd.puml)
-  3. **Low-Level Component Layering**: [uml/3_low_level_components.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/3_low_level_components.puml)
-  4. **Telemetry & Alert Sequence Flow**: [uml/4_sequence_telemetry_alerts.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/4_sequence_telemetry_alerts.puml)
-  5. **Discord LLM Chat Sequence Flow**: [uml/5_sequence_discord_llm_chat.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/5_sequence_discord_llm_chat.puml)
-  6. **Hardware Connection Wiring**: [uml/6_hardware_connections.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/6_hardware_connections.puml)
-
-#### Render Instructions:
-1. **VS Code Extensions**: Install the *PlantUML* extension (by Jebbs) and press `Alt + D` inside any `.puml` file to preview it live.
-2. **PlantUML Online Web Server**: Copy and paste the contents of any `.puml` file into [http://www.plantuml.com/plantuml](http://www.plantuml.com/plantuml) to render it instantly.
-3. **Local CLI Compilation**: Run `java -jar plantuml.jar <filename>.puml` to output a `.png` image of the diagram.
+* **Previewing & Generating Images**:
+  1. **VS Code Extensions**: Install the *PlantUML* extension (by Jebbs) and press `Alt + D` inside the `.puml` file to preview live.
+  2. **PlantUML Online Web Server**: Copy and paste the contents of the `.puml` file into [http://www.plantuml.com/plantuml](http://www.plantuml.com/plantuml) to render instantly.
+  3. **Local CLI Compilation**: Run `java -jar plantuml.jar architecture.puml` to output PNG images of the diagrams.
 
 ---
 
@@ -50,9 +40,11 @@ The system layout uses a client-server and publish-subscribe topology:
 * **Backend Layer**: Next.js Serverless API endpoints hosted on Vercel acting as the central coordination system.
 * **Database Layer**: PostgreSQL Database (Supabase) storing rooms, devices, history, alerts, and consumption records.
 * **AI Layer**: NVIDIA NIM / Google Gemini APIs returning factual, conversational status summaries when the bot is queried.
-* **Edge / Simulation Layer**: Room nodes (ESP32 controllers) or the local Node.js simulator runner pushing telemetry states.
+* **Edge / Simulation Layer**: Room nodes (Arduino Uno controllers) or the local Node.js simulator runner pushing telemetry states.
 
-*Refer to: [uml/1_high_level_deployment.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/1_high_level_deployment.puml)*
+![High-Level Deployment Architecture](uml/1.png)
+
+*Refer to the first block inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
 
 ---
 
@@ -64,7 +56,9 @@ The relational database layer runs on Supabase (PostgreSQL), structured with ind
 * **Alerts Table**: Deduplicates alerts (enforcing uniqueness of active alerts per room/type).
 * **Consumption Logs Table**: Stores historical hourly records for energy usage (kWh) and BDT cost.
 
-*Refer to: [uml/2_database_erd.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/2_database_erd.puml)*
+![Database Schema ERD](uml/2.png)
+
+*Refer to the second block inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
 
 ---
 
@@ -75,32 +69,36 @@ Details the code component structure, service modules, and logical sequence flow
 * **Telemetry Flow**: The Edge node updates DB states and triggers `evaluateAlerts()`. If an anomaly occurs (After Hours or >2 hours continuous ON), the alert is inserted and broadcasted to the Discord Bot over a WebSocket channel.
 * **Conversational LLM Chat Flow**: Reconstructs database state context and forwards it to the LLM completion API.
 
-*Refer to: [uml/3_low_level_components.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/3_low_level_components.puml), [uml/4_sequence_telemetry_alerts.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/4_sequence_telemetry_alerts.puml), and [uml/5_sequence_discord_llm_chat.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/5_sequence_discord_llm_chat.puml)*
+#### A. Software Component Layering (Component Diagram)
+![Software Component Layering](uml/3.png)
+
+#### B. Device Status Update & Alert Logic Sequence Flow
+![Device Status Update and Alert Loop Sequence Flow](uml/4.png)
+
+#### C. Discord Bot Mention & Conversational LLM Chat Flow
+![Discord Bot LLM Flow Sequence Flow](uml/5.png)
+
+*Refer to the third, fourth, and fifth blocks inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
 
 ---
 
 ### 4. Architecture Type 4: Hardware Electrical & Wiring Architecture
 Specifies low-voltage microcontroller logic and high-voltage AC mains wiring:
-* **Control side**: ESP32 GPIO 12-16 pins switch the active-low opto-isolated relay lines. GPIO 34 reads current telemetry from the ACS712 sensor.
-* **Voltage Divider**: Scales ACS712 output (0-5V) by 2/3 using a 10k/20k resistor network to protect the ESP32's 3.3V ADC pin.
+* **Control side**: Arduino Uno Digital Pins 2–6 switch the active-low opto-isolated relay lines. Analog Pin A0 reads current telemetry from the ACS712 sensor.
+* **Direct Analog Input**: The ACS712 outputs `0V - 5V` directly. Because the Arduino Uno's ATmega328P ADC is 5V-tolerant, **no voltage divider is needed**, and the sensor output connects directly to the Arduino's analog input pin (A0).
 * **AC mains side**: 220V AC Live passes through the ACS712 current sensor, linking in parallel to the COM pins of the relays. Normally Open (NO) pins connect to the active loads (lights and fans) returning to AC Neutral.
 
-*Refer to: [uml/6_hardware_connections.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/6_hardware_connections.puml)*
+*Refer to the sixth block inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
 
 ---
 
 ### 2. Electrical Wiring & Circuit Configuration
 
 #### Low-Voltage DC Control System
-1. **Power Supply**: Connect the ESP32 **VIN** pin to a regulated **5V DC** source. The `VCC` input pins of both the **5-Channel Relay Module** and the **ACS712 Current Sensor** must connect to this 5V line.
-2. **Common Ground**: Connect the ESP32 **GND** pin to the `GND` pins of the Relay Module and the ACS712 sensor.
-3. **Relay Control**: Connect GPIOs **12, 13, 14, 15, and 16** on the ESP32 to Relay inputs **IN 1, IN 2, IN 3, IN 4, and IN 5** respectively. (Relays switch on an Active-Low signal).
-4. **Current Sensor Scaling (ADC Protection)**:
-   * The ACS712 outputs a voltage ranging from `0` to `5V` (centered at `2.5V` for `0` Amps AC current).
-   * Since the ESP32's ADC inputs are limited to `3.3V`, a voltage divider is required.
-   * Place a **10 kΩ resistor** between ACS712 `OUT` and a junction point.
-   * Place a **20 kΩ resistor** between that junction point and `GND`.
-   * Connect the junction point directly to **GPIO 34** (ADC1 Channel 6). This scales the analog voltage by $2/3$, ensuring a `5V` peak output is read as a safe `3.33V` value.
+1. **Power Supply**: Connect the Arduino Uno **5V** or **VIN** pin to a regulated **5V DC** source. The `VCC` input pins of both the **5-Channel Relay Module** and the **ACS712 Current Sensor** must connect to this 5V line.
+2. **Common Ground**: Connect the Arduino Uno **GND** pin to the `GND` pins of the Relay Module and the ACS712 sensor.
+3. **Relay Control**: Connect Digital Pins **2, 3, 4, 5, and 6** on the Arduino to Relay inputs **IN 1, IN 2, IN 3, IN 4, and IN 5** respectively. (Relays switch on an Active-Low signal).
+4. **Current Sensor**: Connect the ACS712 `OUT` pin directly to **Analog Input Pin A0**.
 
 #### High-Voltage AC Power System (220V AC Mains)
 1. **Live Line Current Path**: Connect the high-voltage **AC Live line** to the `IP+` screw terminal of the ACS712 Current Sensor.
@@ -118,21 +116,21 @@ Specifies low-voltage microcontroller logic and high-voltage AC mains wiring:
 ### 3. Scaling Options (Multi-Room Architecture)
 
 #### Option A: Distributed Architecture (Recommended)
-Each room has an independent **ESP32 controller**, a **5-channel relay**, and a **current sensor**. The nodes coordinate over Wi-Fi, reporting to the Supabase database.
+Each room has an independent **Arduino Uno controller**, a **5-channel relay**, and a **current sensor**. The nodes report telemetry to the server via an external Wi-Fi shield (such as an ESP8266 or ESP-01) or operate as serial nodes connected to local gateway PCs.
 * **Pros**: Isolates electrical faults locally; limits high-voltage wiring length through walls.
 * **Cons**: Requires 3 microcontrollers.
 
-#### Option B: Centralized Node Architecture (Single ESP32)
-A single central ESP32 controls all 15 devices across the office by utilizing separate GPIO channels and ADC pins.
+#### Option B: Centralized Node Architecture (Single Arduino Uno)
+A single central Arduino Uno controls all 15 devices across the office. Since a standard Arduino Uno only features 14 digital I/O pins (with pins 0 and 1 reserved for serial TX/RX), a **MCP23017 GPIO Expander** is added on the I2C bus (SDA/SCL) to provide 16 digital ports for the relays. Analog input pins **A0, A1, and A2** read the current sensors for each room.
 
-| Room | Component | Type | ESP32 GPIO Pin |
+| Room | Component | Type | Microcontroller Pin Connection |
 | :--- | :--- | :--- | :--- |
-| **Drawing Room** | Fan 1 / Fan 2 / Light 1 / Light 2 / Light 3 | Outputs | **GPIO 12, 13, 14, 15, 16** |
-| | Current Sensor | Analog input | **GPIO 34** (ADC1) |
-| **Work Room 1** | Fan 1 / Fan 2 / Light 1 / Light 2 / Light 3 | Outputs | **GPIO 17, 18, 19, 21, 22** |
-| | Current Sensor | Analog input | **GPIO 35** (ADC1) |
-| **Work Room 2** | Fan 1 / Fan 2 / Light 1 / Light 2 / Light 3 | Outputs | **GPIO 23, 25, 26, 27, 32** |
-| | Current Sensor | Analog input | **GPIO 36** (ADC1) |
+| **Drawing Room** | Fan 1 / Fan 2 / Light 1 / Light 2 / Light 3 | Outputs | **MCP23017 Port GPA0 – GPA4** |
+| | Current Sensor | Analog input | **Arduino Pin A0** |
+| **Work Room 1** | Fan 1 / Fan 2 / Light 1 / Light 2 / Light 3 | Outputs | **MCP23017 Port GPA5 – GPB1** |
+| | Current Sensor | Analog input | **Arduino Pin A1** |
+| **Work Room 2** | Fan 1 / Fan 2 / Light 1 / Light 2 / Light 3 | Outputs | **MCP23017 Port GPB2 – GPB6** |
+| | Current Sensor | Analog input | **Arduino Pin A2** |
 
 ---
 
