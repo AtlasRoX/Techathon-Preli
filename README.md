@@ -34,100 +34,72 @@ Chrono Office integrates **4 distinct architectural patterns** across its hardwa
 
 This diagram describes the physical and hosted nodes of the system and how they exchange information.
 
-```mermaid
-flowchart TB
-    subgraph ClientLayer ["Client Layer"]
-        Dashboard["Web Dashboard - Next.js"]
-        DiscordClient["Discord User Interface"]
-    end
-
-    subgraph BotLayer ["Bot Layer"]
-        DiscordBot["Discord Bot - Node.js"]
-    end
-
-    subgraph ApiLayer ["Backend Layer"]
-        Backend["Backend API - Next.js Serverless"]
-    end
-
-    subgraph DBStore ["Database Layer"]
-        DB[(PostgreSQL Database - Supabase)]
-    end
-
-    subgraph AIProviders ["AI Services"]
-        LLM["LLM Model - Nemotron or Gemini"]
-    end
-
-    subgraph EdgeLayer ["Office Environment - Edge or Simulator"]
-        ESP32Firmware["Room Controller Firmware - ESP32"]
-        Simulator["Hardware Simulator - runner.ts"]
-    end
-
-    %% Interactions
-    Dashboard -->|REST API requests| Backend
-    Dashboard -.->|Supabase Realtime WebSockets| DB
-    DiscordClient -->|Slash Commands and Mentions| DiscordBot
-    DiscordBot -->|REST API requests| Backend
-    DiscordBot -.->|Supabase Realtime Alerts WebSockets| DB
-    DiscordBot -->|Conversational Prompting| LLM
-    ESP32Firmware -->|POST /api/hardware/report| Backend
-    Simulator -->|POST /api/hardware/report and /api/consumption/report| Backend
-    Backend -->|PostgreSQL Queries and RPCs| DB
-```
++-----------------------------------------------------------------------------------+
+|                                   CLIENT LAYER                                    |
+|  +-------------------------------------+  +------------------------------------+  |
+|  |       Web Dashboard (Next.js)       |  |      Discord User Interface        |  |
+|  +-------------------------------------+  +------------------------------------+  |
++--------------------|------------------------------------------|-------------------+
+                     | (REST API)                               | (Slash Cmds)
+                     v                                          v
++--------------------|-------------------+  +-------------------|-------------------+
+|      BACKEND LAYER (Vercel Serverless) |  |        DISCORD BOT (Render Cloud) |  |
+|  +----------------------------------+  |  |  +------------------------------+  |  |
+|  |           Backend API            |  |  |  |           bot.ts             |  |  |
+|  +-----------------+----------------+  |  |  +--------------+---------------+  |  |
++--------------------|-------------------+  +-----------------|-------------------+
+                     | (Queries & RPCs)                       | (Realtime alerts)
+                     |                                        v
++--------------------|----------------------------------------|---------------------+
+|                    |              DATABASE LAYER            |                     |
+|                    |     +----------------------------+     |                     |
+|                    +---->| PostgreSQL DB (Supabase)   |<----+                     |
+|                          +----------------------------+                           |
++-----------------------------------------------------------------------------------+
+                                          ^
+                                          | (POST Status Reports)
++-----------------------------------------|-----------------------------------------+
+|                              EDGE / SIMULATOR LAYER                               |
+|  +-------------------------------------+  +------------------------------------+  |
+|  |     Room Controller (ESP32)         |  |    Hardware Simulator (runner.ts)  |  |
+|  +-------------------------------------+  +------------------------------------+  |
++-----------------------------------------------------------------------------------+
 
 ---
 
-### 2. Architecture Type 2: Database & Data Schema Architecture
+## 2. Architecture Type 2: Database & Data Schema Architecture
 
 The database runs on Supabase (PostgreSQL). Below is the database schema, including indexes, constraints, and relationships.
 
-```mermaid
-erDiagram
-    rooms {
-        text id PK
-        text name
-    }
-
-    devices {
-        uuid id PK
-        text room_id FK
-        text name
-        device_type type
-        boolean status
-        integer wattage
-        timestamptz last_changed_at
-    }
-
-    device_history {
-        uuid id PK
-        uuid device_id FK
-        boolean previous_status
-        boolean new_status
-        timestamptz changed_at
-    }
-
-    alerts {
-        uuid id PK
-        text room_id FK
-        alert_type type
-        text message
-        boolean active
-        timestamptz triggered_at
-        timestamptz resolved_at
-    }
-
-    consumption_logs {
-        uuid id PK
-        timestamptz logged_at
-        timestamptz sim_time
-        text room_id
-        numeric kwh
-        numeric cost_bdt
-    }
-
-    rooms ||--o{ devices : "has"
-    rooms ||--o{ alerts : "has"
-    devices ||--o{ device_history : "logs transitions"
-```
++----------------------+         +-------------------------------------+
+|        ROOMS         |         |               DEVICES               |
++----------------------+         +-------------------------------------+
+| id (PK)   : text     |<----+   | id (PK)         : uuid              |
+| name      : text     |     |   | room_id (FK)    : text (Ref Rooms)  |
++----------------------+     +---| name            : text              |
+                             |   | type            : device_type       |
++----------------------+     |   | status          : boolean           |
+|        ALERTS        |     |   | wattage         : integer           |
++----------------------+     |   | last_changed_at : timestamptz       |
+| id (PK)   : uuid     |     |   +------------------+------------------+
+| room_id   : text (FK)|<----+                      |
+| type      : alert_typ|                            |
+| message   : text     |                            | (1 to Many)
+| active    : boolean  |                            v
+| triggered_: timestam |                 +-----------------------------+
+| resolved_at: timesta |                 |       DEVICE_HISTORY        |
++----------------------+                 +-----------------------------+
+                                         | id (PK)         : uuid      |
++----------------------+                 | device_id (FK)  : uuid      |
+|   CONSUMPTION_LOGS   |                 | previous_status : boolean   |
++----------------------+                 | new_status      : boolean   |
+| id (PK)   : uuid     |                 | changed_at      : timestamptz |
+| logged_at : timestamp|                 +-----------------------------+
+| sim_time  : timestamp|
+| room_id   : text     |
+| kwh       : numeric  |
+| cost_bdt  : numeric  |
++----------------------+
 
 > [!NOTE]
 > Database performance is enhanced with several indices:
@@ -142,154 +114,79 @@ erDiagram
 
 This section details the internal code layer structure of the Backend API, Web Dashboard, and Discord Bot, followed by sequence flows of their interactions.
 
-#### A. Software Component Layering (UML Component Diagram)
+#### A. Software Component Layering (Component Diagram)
 
-```mermaid
-flowchart TD
-    subgraph BackendComponent ["Backend API and Services"]
-        direction TB
-        subgraph API_Routes ["API Routes - app/api/"]
-            R_Power["power/route.ts - GET"]
-            R_Alerts["alerts/route.ts - GET"]
-            R_Devices["devices/route.ts - GET"]
-            R_History["devices/history/route.ts - GET"]
-            R_Toggle["devices/toggle/route.ts - POST 403"]
-            R_Report["hardware/report/route.ts - POST"]
-            R_Cons["consumption/route.ts - GET"]
-            R_ConsLog["consumption/logs/route.ts - GET"]
-            R_ConsRep["consumption/report/route.ts - POST"]
-            R_ConsBreak["consumption/breakdown/route.ts - GET"]
-        end
-
-        subgraph Services ["Services Layer - src/services/"]
-            S_Device["DeviceService"]
-            S_Alert["AlertService"]
-            S_Power["PowerService"]
-            S_Cons["ConsumptionService"]
-            S_Room["RoomService"]
-        end
-
-        API_Routes --> Services
-    end
-
-    subgraph BotComponent ["Discord Bot Component"]
-        direction TB
-        Bot_Main["bot.ts - Main Loop"]
-        Bot_LLM["LLM Integration - NVIDIA or Gemini"]
-        Bot_Http["Keep-Alive HTTP Server"]
-
-        Bot_Main --> Bot_LLM
-        Bot_Main --> Bot_Http
-    end
-
-    subgraph WebComponent ["Web Dashboard Component"]
-        direction TB
-        Page_Main["page.tsx - Main Panel"]
-        Page_Layout["layout.tsx"]
-        Lib_Types["lib/types.ts"]
-
-        Page_Main --> Lib_Types
-    end
-
-    BackendComponent -->|Supabase Client| DB_Sub[(PostgreSQL DB)]
-    BotComponent -->|Fetch REST APIs| BackendComponent
-    BotComponent -->|Supabase Realtime| DB_Sub
-    WebComponent -->|Fetch REST APIs| BackendComponent
-    WebComponent -->|Supabase Realtime| DB_Sub
-```
++-------------------------------------------------------------------+
+|                     BACKEND API & SERVICES                        |
+|                                                                   |
+|  +-------------------------------------------------------------+  |
+|  |                   API Routes (app/api/)                     |  |
+|  |  - /power  - /alerts  - /devices  - /devices/history        |  |
+|  |  - /devices/toggle (403)  - /hardware/report  - /consumption|  |
+|  |  - /consumption/logs  - /consumption/report  - /breakdown   |  |
+|  +------------------------------+------------------------------+  |
+|                                 |                                 |
+|                                 v (calls)                         |
+|  +-------------------------------------------------------------+  |
+|  |                   Services (src/services/)                  |  |
+|  |  - DeviceService     - AlertService     - PowerService      |  |
+|  |  - ConsumptionService                   - RoomService       |  |
+|  +-------------------------------------------------------------+  |
++---------------------------------+---------------------------------+
+                                  |
+                                  v (Supabase client client-side)
+                       +----------------------+
+                       |  PostgreSQL Database |
+                       +----------------------+
+                                  ^
+                                  | (Fetch APIs & Realtime WebSockets)
++---------------------------------+---------------------------------+
+|                       CLIENT WEB DASHBOARD                        |
+|  +-------------------------------------------------------------+  |
+|  |  - page.tsx (Live Meters, Floor Plan, Controls)             |  |
+|  |  - layout.tsx        - lib/types.ts                         |  |
+|  +-------------------------------------------------------------+  |
++-------------------------------------------------------------------+
+                                  ^
+                                  | (Fetch APIs & Realtime WebSockets)
++---------------------------------+---------------------------------+
+|                        DISCORD BOT                                |
+|  +-------------------------------------------------------------+  |
+|  |  - bot.ts (Main polling & commands handler)                 |  |
+|  |  - LLM Integration (NVIDIA NIM / Google Gemini)             |  |
+|  |  - Keep-Alive HTTP Health Server                            |  |
+|  +-------------------------------------------------------------+  |
++-------------------------------------------------------------------+
 
 #### B. Device Status Update & Alert Logic Sequence Flow
 
-```mermaid
-sequenceDiagram
-  autonumber
-  participant HW as "ESP32 or Simulator"
-  participant API as "Backend API - Hardware Report"
-  participant DS as "DeviceService"
-  participant AS as "AlertService"
-  participant DB as "Supabase PostgreSQL"
-  participant Bot as "Discord Bot"
-  participant Disc as "Discord Text Channel"
-
-  HW->>API: POST /api/hardware/report
-  activate API
-  API->>DS: updateDeviceStatusSimulated()
-  activate DS
-  DS->>DB: Fetch current status
-  DB-->>DS: Status value
-  alt Status changed
-    DS->>DB: UPDATE devices and INSERT history
-  end
-  deactivate DS
-  
-  API->>AS: evaluateAlerts()
-  activate AS
-  loop For each Room
-    AS->>DS: getDevicesByRoom()
-    DS-->>AS: List of devices
-    
-    alt Is After Hours and device is ON
-      AS->>AS: triggerAlert after_hours
-      AS->>DB: INSERT INTO alerts
-      DB-->>Bot: Realtime INSERT Broadcast
-      activate Bot
-      Bot->>Bot: conversationalize()
-      Bot->>Disc: Send Alert Embed Msg
-      deactivate Bot
-    else Inside Working Hours or all devices OFF
-      AS->>AS: resolveAlert after_hours
-      AS->>DB: UPDATE alerts active=false
-    end
-    
-    alt All devices ON continuously for more than 2 hours
-      AS->>AS: triggerAlert continuous_usage
-      AS->>DB: INSERT INTO alerts
-      DB-->>Bot: Realtime INSERT Broadcast
-      activate Bot
-      Bot->>Bot: conversationalize()
-      Bot->>Disc: Send Alert Embed Msg
-      deactivate Bot
-    else At least one device is OFF
-      AS->>AS: resolveAlert continuous_usage
-      AS->>DB: UPDATE alerts active=false
-    end
-  end
-  deactivate AS
-  
-  API-->>HW: 200 OK
-  deactivate API
-```
+ESP32 / Simulator           Backend API               Services/DB             Discord Bot
+        |                        |                        |                        |
+        |-- 1. POST report ----->|                        |                        |
+        |   (states & simTime)   |-- 2. update status --->|                        |
+        |                        |   & insert history     |-- 3. Alert Triggered ->|
+        |                        |                        |   (Realtime Broadcast) |
+        |                        |-- 4. evaluateAlerts() >|                        v
+        |                        |                        |                    conversationalize
+        |                        |                        |                        |-- 5. Alert Embed Message
+        |<-- 6. 200 OK ----------|                        |                        v
+        |                        |                        |                   Text Channel
 
 #### C. Discord Bot Mention & Conversational LLM Chat Flow
 
-```mermaid
-sequenceDiagram
-  autonumber
-  actor User as "Boss User"
-  participant Bot as "Discord Bot"
-  participant API as "Backend API"
-  participant AI as "NVIDIA NIM or Gemini API"
-
-  User->>Bot: Mention ChronoBot status request
-  activate Bot
-  
-  Note over Bot: Gather system context in parallel
-  Bot->>API: GET /api/devices
-  Bot->>API: GET /api/power
-  Bot->>API: GET /api/consumption
-  Bot->>API: GET /api/alerts
-  API-->>Bot: Live status data
-  
-  Note over Bot: Construct System Prompt with live DB context
-  Bot->>AI: POST GenerateContent request
-  activate AI
-  AI-->>Bot: Factual response
-  deactivate AI
-  
-  Bot->>Bot: Format response
-  Bot-->>User: Reply message in Discord
-  deactivate Bot
-```
+User                       Discord Bot               Backend API                 AI API
+  |                             |                         |                         |
+  |-- 1. Mentions @ChronoBot -->|                         |                         |
+  |                             |-- 2. GET Devices ------>|                         |
+  |                             |-- 3. GET Power -------->|                         |
+  |                             |-- 4. GET Consumption -->|                         |
+  |                             |<-- 5. Returns context --|                         |
+  |                             |                                                   |
+  |                             |-- 6. Send live context & prompt ----------------->|
+  |                             |<-- 7. Factual reply text -------------------------|
+  |                             |                                                   |
+  |                             |-- 8. Format response                              |
+  |<-- 9. Reply message --------|                                                   |
 
 ---
 
@@ -299,90 +196,49 @@ A central room controller coordinates power switching and current logging.
 
 * **Schematic Link**: [Tinkercad Circuits Visual Blueprint](https://www.tinkercad.com/things/d9lKPrRibuv/editel?sharecode=0FRpBOQlyc4BkpXgR8tdaHEMMs3Qnq1KcieN3BWWfIk)
 
-#### A. Hardware Connection Layout (UML Block Diagram)
+#### A. Hardware Connection Layout (Block Diagram)
 
-```mermaid
-flowchart TD
-    subgraph ESP32_Node ["ESP32 Microcontroller"]
-        Pin_VIN["VIN - 5V DC Input"]
-        Pin_GND["GND - Common Ground"]
-        Pin_G12["GPIO 12 - Out: Fan 1"]
-        Pin_G13["GPIO 13 - Out: Fan 2"]
-        Pin_G14["GPIO 14 - Out: Light 1"]
-        Pin_G15["GPIO 15 - Out: Light 2"]
-        Pin_G16["GPIO 16 - Out: Light 3"]
-        Pin_G34["GPIO 34 - ADC Input: Current"]
-    end
-
-    subgraph Relays ["5-Channel Relay Module"]
-        R_VCC["VCC"]
-        R_GND["GND"]
-        R_IN1["IN 1"]
-        R_IN2["IN 2"]
-        R_IN3["IN 3"]
-        R_IN4["IN 4"]
-        R_IN5["IN 5"]
-        R_COM["COM - Common AC Live input"]
-        R_NO1["Normally Open 1"]
-        R_NO2["Normally Open 2"]
-        R_NO3["Normally Open 3"]
-        R_NO4["Normally Open 4"]
-        R_NO5["Normally Open 5"]
-    end
-
-    subgraph Sensor ["ACS712 Current Sensor"]
-        S_VCC["VCC"]
-        S_GND["GND"]
-        S_OUT["OUT - Analog Output"]
-        IP_Plus["IP+ terminal"]
-        IP_Minus["IP- terminal"]
-    end
-
-    subgraph Div ["Voltage Divider - ADC Protection"]
-        R1["Resistor 10 kOhm"]
-        R2["Resistor 20 kOhm"]
-        Junc["Junction Point - 2/3 Scale"]
-    end
-
-    subgraph AC_Loads ["220V AC Devices"]
-        Dev_Fan1["Fan 1"]
-        Dev_Fan2["Fan 2"]
-        Dev_Light1["Light 1"]
-        Dev_Light2["Light 2"]
-        Dev_Light3["Light 3"]
-    end
-
-    subgraph AC_Mains ["220V AC Mains"]
-        AC_Live["AC Live Line"]
-        AC_Neut["AC Neutral Line"]
-    end
-
-    %% Low Voltage DC Connections
-    Pin_VIN --> R_VCC & S_VCC
-    Pin_GND --> R_GND & S_GND & R2
-    Pin_G12 --> R_IN1
-    Pin_G13 --> R_IN2
-    Pin_G14 --> R_IN3
-    Pin_G15 --> R_IN4
-    Pin_G16 --> R_IN5
-
-    %% Voltage Divider Connections
-    S_OUT --> R1
-    R1 --> Junc
-    R2 --> Junc
-    Junc --> Pin_G34
-
-    %% High Voltage AC Connections
-    AC_Live --> IP_Plus
-    IP_Minus --> R_COM
-    R_NO1 --> Dev_Fan1
-    R_NO2 --> Dev_Fan2
-    R_NO3 --> Dev_Light1
-    R_NO4 --> Dev_Light2
-    R_NO5 --> Dev_Light3
-
-    Dev_Fan1 & Dev_Fan2 & Dev_Light1 & Dev_Light2 & Dev_Light3 --> AC_Neut
-```
+                        +----------------------------+
+                        |      ESP32 Wi-Fi Node      |
+                        +----------------------------+
+                          |   |   |   |   |   |   |
+         (Relay Controls) |   |   |   |   |   |   | (Current Analog Input)
+      +-------------------+   |   |   |   |   |   +-----------------------+
+      |   +-------------------+   |   |   |   |                           |
+      |   |   +-------------------+   |   |   |                           |
+      |   |   |   +-------------------+   |   |                           |
+      |   |   |   |   +-------------------+   |                           |
+      v   v   v   v   v                       v                           v
+   +-------------------+              +---------------+           +---------------+
+   |  5-Channel Relay  |              | 10k Resistor  |           | ACS712 Sensor |
+   |    Trigger Pins   |              +-------+-------+           | Analog Output |
+   +---------+---------+                      |                   +-------+-------+
+             |                                |                           |
+             |                                v                           |
+             |                        +---------------+                   |
+             |                        | Junction Pin  |<------------------+
+             |                        |   (GPIO 34)   |
+             |                        +---------------+
+             |                                |
+             |                        +---------------+
+             |                        | 20k Resistor  |
+             |                        +-------+-------+
+             |                                |
+             |                                v
+             |                             [ GND ]
+             |
+             | (Normally Open switching)
+             +---------------+-----------------------------------------------+
+                             |               |               |               |
+                             v               v               v               v
+                      +------------+  +------------+  +------------+  +------------+
+                      |   Fan 1    |  |   Fan 2    |  |  Light 1   |  |  Light 2   |
+                      +-----+------+  +-----+------+  +-----+------+  +-----+------+
+                            |               |               |               |
+                            +---------------+---------------+---------------+
+                                            | (Return Line)
+                                            v
+                                     [ AC Neutral ]
 
 ### 2. Electrical Wiring & Circuit Configuration
 
