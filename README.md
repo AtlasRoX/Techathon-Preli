@@ -22,223 +22,61 @@ It features:
 
 ## 🚀 System Architecture
 
-Chrono Office integrates **4 distinct architectural patterns** across its hardware and software layers:
-1. **Client-Server Architecture**: Web dashboard clients and Discord bot processes consume stateless API requests from the Next.js serverless backend.
-2. **Realtime Event-Driven / Pub-Sub**: Supabase Realtime pushes database modifications (device states, new alerts) instantly via WebSockets to listening clients.
-3. **Layered (3-Tier) Software Architecture**: Code structure is divided into a presentation layer (API routes), domain services layer, and data persistence layer (PostgreSQL).
-4. **IoT Edge-Cloud Architecture**: Physical room nodes (ESP32 controllers) represent the Edge, managing relays locally and reporting state telemetry to the cloud backend.
+Chrono Office integrates **4 distinct architectural patterns** across its hardware and software layers. The complete UML models for all layers are defined using PlantUML syntax in the workspace file [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).
+
+### 🔍 How to View and Render the UML Diagrams
+You can view, edit, or compile the UML diagrams using:
+1. **VS Code Extensions**: Install the *PlantUML* extension (by Jebbs) and press `Alt + D` to preview any diagram live.
+2. **PlantUML Online Web Server**: Copy and paste the contents of [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml) into [http://www.plantuml.com/plantuml](http://www.plantuml.com/plantuml) to render them instantly.
+3. **Local CLI Compilation**: Run the PlantUML JAR compiler to generate `.png` or `.svg` images.
 
 ---
 
 ### 1. Architecture Type 1: High-Level System & Deployment Architecture
+The system layout uses a client-server and publish-subscribe topology:
+* **Client Layer**: Web Dashboard (Next.js) showing live meters/controls, and the Discord client interface.
+* **Bot Layer**: Discord Bot (Node.js) hosted on Render Cloud, polling metrics and subscribing to active alert triggers.
+* **Backend Layer**: Next.js Serverless API endpoints hosted on Vercel acting as the central coordination system.
+* **Database Layer**: PostgreSQL Database (Supabase) storing rooms, devices, history, alerts, and consumption records.
+* **AI Layer**: NVIDIA NIM / Google Gemini APIs returning factual, conversational status summaries when the bot is queried.
+* **Edge / Simulation Layer**: Room nodes (ESP32 controllers) or the local Node.js simulator runner pushing telemetry states.
 
-This diagram describes the physical and hosted nodes of the system and how they exchange information.
-
-+-----------------------------------------------------------------------------------+
-|                                   CLIENT LAYER                                    |
-|  +-------------------------------------+  +------------------------------------+  |
-|  |       Web Dashboard (Next.js)       |  |      Discord User Interface        |  |
-|  +-------------------------------------+  +------------------------------------+  |
-+--------------------|------------------------------------------|-------------------+
-                     | (REST API)                               | (Slash Cmds)
-                     v                                          v
-+--------------------|-------------------+  +-------------------|-------------------+
-|      BACKEND LAYER (Vercel Serverless) |  |        DISCORD BOT (Render Cloud) |  |
-|  +----------------------------------+  |  |  +------------------------------+  |  |
-|  |           Backend API            |  |  |  |           bot.ts             |  |  |
-|  +-----------------+----------------+  |  |  +--------------+---------------+  |  |
-+--------------------|-------------------+  +-----------------|-------------------+
-                     | (Queries & RPCs)                       | (Realtime alerts)
-                     |                                        v
-+--------------------|----------------------------------------|---------------------+
-|                    |              DATABASE LAYER            |                     |
-|                    |     +----------------------------+     |                     |
-|                    +---->| PostgreSQL DB (Supabase)   |<----+                     |
-|                          +----------------------------+                           |
-+-----------------------------------------------------------------------------------+
-                                          ^
-                                          | (POST Status Reports)
-+-----------------------------------------|-----------------------------------------+
-|                              EDGE / SIMULATOR LAYER                               |
-|  +-------------------------------------+  +------------------------------------+  |
-|  |     Room Controller (ESP32)         |  |    Hardware Simulator (runner.ts)  |  |
-|  +-------------------------------------+  +------------------------------------+  |
-+-----------------------------------------------------------------------------------+
+*Refer to the `@startuml high_level_deployment` block inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
 
 ---
 
-## 2. Architecture Type 2: Database & Data Schema Architecture
+### 2. Architecture Type 2: Database & Data Schema Architecture
+The relational database layer runs on Supabase (PostgreSQL), structured with indexing for high-frequency writes:
+* **Rooms Table**: Tracks drawing-room, work-room-1, and work-room-2.
+* **Devices Table**: Holds status, type (light/fan), and nominal wattage for all 15 devices.
+* **Device History Table**: Captures transition timestamps (ON to OFF, and vice-versa) for state tracking.
+* **Alerts Table**: Deduplicates alerts (enforcing uniqueness of active alerts per room/type).
+* **Consumption Logs Table**: Stores historical hourly records for energy usage (kWh) and BDT cost.
 
-The database runs on Supabase (PostgreSQL). Below is the database schema, including indexes, constraints, and relationships.
-
-+----------------------+         +-------------------------------------+
-|        ROOMS         |         |               DEVICES               |
-+----------------------+         +-------------------------------------+
-| id (PK)   : text     |<----+   | id (PK)         : uuid              |
-| name      : text     |     |   | room_id (FK)    : text (Ref Rooms)  |
-+----------------------+     +---| name            : text              |
-                             |   | type            : device_type       |
-+----------------------+     |   | status          : boolean           |
-|        ALERTS        |     |   | wattage         : integer           |
-+----------------------+     |   | last_changed_at : timestamptz       |
-| id (PK)   : uuid     |     |   +------------------+------------------+
-| room_id   : text (FK)|<----+                      |
-| type      : alert_typ|                            |
-| message   : text     |                            | (1 to Many)
-| active    : boolean  |                            v
-| triggered_: timestam |                 +-----------------------------+
-| resolved_at: timesta |                 |       DEVICE_HISTORY        |
-+----------------------+                 +-----------------------------+
-                                         | id (PK)         : uuid      |
-+----------------------+                 | device_id (FK)  : uuid      |
-|   CONSUMPTION_LOGS   |                 | previous_status : boolean   |
-+----------------------+                 | new_status      : boolean   |
-| id (PK)   : uuid     |                 | changed_at      : timestamptz |
-| logged_at : timestamp|                 +-----------------------------+
-| sim_time  : timestamp|
-| room_id   : text     |
-| kwh       : numeric  |
-| cost_bdt  : numeric  |
-+----------------------+
-
-> [!NOTE]
-> Database performance is enhanced with several indices:
-> * `idx_devices_room` on `devices(room_id)`
-> * `idx_history_device_time` on `device_history(device_id, changed_at DESC)`
-> * `idx_alerts_active` on `alerts(active)`
-> * `idx_alerts_active_room_type` unique index on `alerts(room_id, type) WHERE active = true` (guarantees a room has at most one active alert of a given type).
+*Refer to the `@startuml database_erd` block inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
 
 ---
 
 ### 3. Architecture Type 3: Low-Level Software Architecture
+Details the code component structure, service modules, and logical sequence flows:
+* **API Endpoints**: Structured Next.js route handlers invoking business services.
+* **Services Layer**: Modular classes (`DeviceService`, `AlertService`, `PowerService`, `ConsumptionService`) encapsulating database access.
+* **Telemetry Flow**: The Edge node updates DB states and triggers `evaluateAlerts()`. If an anomaly occurs (After Hours or >2 hours continuous ON), the alert is inserted and broadcasted to the Discord Bot over a WebSocket channel.
+* **Conversational LLM Chat Flow**: Reconstructs database state context and forwards it to the LLM completion API.
 
-This section details the internal code layer structure of the Backend API, Web Dashboard, and Discord Bot, followed by sequence flows of their interactions.
-
-#### A. Software Component Layering (Component Diagram)
-
-+-------------------------------------------------------------------+
-|                     BACKEND API & SERVICES                        |
-|                                                                   |
-|  +-------------------------------------------------------------+  |
-|  |                   API Routes (app/api/)                     |  |
-|  |  - /power  - /alerts  - /devices  - /devices/history        |  |
-|  |  - /devices/toggle (403)  - /hardware/report  - /consumption|  |
-|  |  - /consumption/logs  - /consumption/report  - /breakdown   |  |
-|  +------------------------------+------------------------------+  |
-|                                 |                                 |
-|                                 v (calls)                         |
-|  +-------------------------------------------------------------+  |
-|  |                   Services (src/services/)                  |  |
-|  |  - DeviceService     - AlertService     - PowerService      |  |
-|  |  - ConsumptionService                   - RoomService       |  |
-|  +-------------------------------------------------------------+  |
-+---------------------------------+---------------------------------+
-                                  |
-                                  v (Supabase client client-side)
-                       +----------------------+
-                       |  PostgreSQL Database |
-                       +----------------------+
-                                  ^
-                                  | (Fetch APIs & Realtime WebSockets)
-+---------------------------------+---------------------------------+
-|                       CLIENT WEB DASHBOARD                        |
-|  +-------------------------------------------------------------+  |
-|  |  - page.tsx (Live Meters, Floor Plan, Controls)             |  |
-|  |  - layout.tsx        - lib/types.ts                         |  |
-|  +-------------------------------------------------------------+  |
-+-------------------------------------------------------------------+
-                                  ^
-                                  | (Fetch APIs & Realtime WebSockets)
-+---------------------------------+---------------------------------+
-|                        DISCORD BOT                                |
-|  +-------------------------------------------------------------+  |
-|  |  - bot.ts (Main polling & commands handler)                 |  |
-|  |  - LLM Integration (NVIDIA NIM / Google Gemini)             |  |
-|  |  - Keep-Alive HTTP Health Server                            |  |
-|  +-------------------------------------------------------------+  |
-+-------------------------------------------------------------------+
-
-#### B. Device Status Update & Alert Logic Sequence Flow
-
-ESP32 / Simulator           Backend API               Services/DB             Discord Bot
-        |                        |                        |                        |
-        |-- 1. POST report ----->|                        |                        |
-        |   (states & simTime)   |-- 2. update status --->|                        |
-        |                        |   & insert history     |-- 3. Alert Triggered ->|
-        |                        |                        |   (Realtime Broadcast) |
-        |                        |-- 4. evaluateAlerts() >|                        v
-        |                        |                        |                    conversationalize
-        |                        |                        |                        |-- 5. Alert Embed Message
-        |<-- 6. 200 OK ----------|                        |                        v
-        |                        |                        |                   Text Channel
-
-#### C. Discord Bot Mention & Conversational LLM Chat Flow
-
-User                       Discord Bot               Backend API                 AI API
-  |                             |                         |                         |
-  |-- 1. Mentions @ChronoBot -->|                         |                         |
-  |                             |-- 2. GET Devices ------>|                         |
-  |                             |-- 3. GET Power -------->|                         |
-  |                             |-- 4. GET Consumption -->|                         |
-  |                             |<-- 5. Returns context --|                         |
-  |                             |                                                   |
-  |                             |-- 6. Send live context & prompt ----------------->|
-  |                             |<-- 7. Factual reply text -------------------------|
-  |                             |                                                   |
-  |                             |-- 8. Format response                              |
-  |<-- 9. Reply message --------|                                                   |
+*Refer to the `@startuml low_level_components`, `@startuml sequence_telemetry_alerts`, and `@startuml sequence_discord_llm_chat` blocks inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
 
 ---
 
 ### 4. Architecture Type 4: Hardware Electrical & Wiring Architecture
+Specifies low-voltage microcontroller logic and high-voltage AC mains wiring:
+* **Control side**: ESP32 GPIO 12-16 pins switch the active-low opto-isolated relay lines. GPIO 34 reads current telemetry from the ACS712 sensor.
+* **Voltage Divider**: Scales ACS712 output (0-5V) by 2/3 using a 10k/20k resistor network to protect the ESP32's 3.3V ADC pin.
+* **AC mains side**: 220V AC Live passes through the ACS712 current sensor, linking in parallel to the COM pins of the relays. Normally Open (NO) pins connect to the active loads (lights and fans) returning to AC Neutral.
 
-A central room controller coordinates power switching and current logging.
+*Refer to the `@startuml hardware_connections` block inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
 
-* **Schematic Link**: [Tinkercad Circuits Visual Blueprint](https://www.tinkercad.com/things/d9lKPrRibuv/editel?sharecode=0FRpBOQlyc4BkpXgR8tdaHEMMs3Qnq1KcieN3BWWfIk)
-
-#### A. Hardware Connection Layout (Block Diagram)
-
-                        +----------------------------+
-                        |      ESP32 Wi-Fi Node      |
-                        +----------------------------+
-                          |   |   |   |   |   |   |
-         (Relay Controls) |   |   |   |   |   |   | (Current Analog Input)
-      +-------------------+   |   |   |   |   |   +-----------------------+
-      |   +-------------------+   |   |   |   |                           |
-      |   |   +-------------------+   |   |   |                           |
-      |   |   |   +-------------------+   |   |                           |
-      |   |   |   |   +-------------------+   |                           |
-      v   v   v   v   v                       v                           v
-   +-------------------+              +---------------+           +---------------+
-   |  5-Channel Relay  |              | 10k Resistor  |           | ACS712 Sensor |
-   |    Trigger Pins   |              +-------+-------+           | Analog Output |
-   +---------+---------+                      |                   +-------+-------+
-             |                                |                           |
-             |                                v                           |
-             |                        +---------------+                   |
-             |                        | Junction Pin  |<------------------+
-             |                        |   (GPIO 34)   |
-             |                        +---------------+
-             |                                |
-             |                        +---------------+
-             |                        | 20k Resistor  |
-             |                        +-------+-------+
-             |                                |
-             |                                v
-             |                             [ GND ]
-             |
-             | (Normally Open switching)
-             +---------------+-----------------------------------------------+
-                             |               |               |               |
-                             v               v               v               v
-                      +------------+  +------------+  +------------+  +------------+
-                      |   Fan 1    |  |   Fan 2    |  |  Light 1   |  |  Light 2   |
-                      +-----+------+  +-----+------+  +-----+------+  +-----+------+
-                            |               |               |               |
-                            +---------------+---------------+---------------+
-                                            | (Return Line)
-                                            v
-                                     [ AC Neutral ]
+---
 
 ### 2. Electrical Wiring & Circuit Configuration
 
