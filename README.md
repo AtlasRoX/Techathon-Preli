@@ -22,14 +22,7 @@ It features:
 
 ## 🚀 System Architecture
 
-Chrono Office integrates **4 distinct architectural patterns** across its hardware and software layers. The complete UML models for all layers are defined using PlantUML syntax in the root [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml) file.
-
-### 🔍 How to View and Render the UML Diagrams
-* **Master UML File**: [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml)
-* **Previewing & Generating Images**:
-  1. **VS Code Extensions**: Install the *PlantUML* extension (by Jebbs) and press `Alt + D` inside the `.puml` file to preview live.
-  2. **PlantUML Online Web Server**: Copy and paste the contents of the `.puml` file into [http://www.plantuml.com/plantuml](http://www.plantuml.com/plantuml) to render instantly.
-  3. **Local CLI Compilation**: Run `java -jar plantuml.jar architecture.puml` to output PNG images of the diagrams.
+Chrono Office integrates **4 distinct architectural patterns** across its hardware and software layers, illustrated by the embedded UML diagrams below:
 
 ---
 
@@ -44,8 +37,6 @@ The system layout uses a client-server and publish-subscribe topology:
 
 ![High-Level Deployment Architecture](uml/1.png)
 
-*Refer to the first block inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
-
 ---
 
 ### 2. Architecture Type 2: Database & Data Schema Architecture
@@ -57,8 +48,6 @@ The relational database layer runs on Supabase (PostgreSQL), structured with ind
 * **Consumption Logs Table**: Stores historical hourly records for energy usage (kWh) and BDT cost.
 
 ![Database Schema ERD](uml/2.png)
-
-*Refer to the second block inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
 
 ---
 
@@ -78,8 +67,6 @@ Details the code component structure, service modules, and logical sequence flow
 #### C. Discord Bot Mention & Conversational LLM Chat Flow
 ![Discord Bot LLM Flow Sequence Flow](uml/5.png)
 
-*Refer to the third, fourth, and fifth blocks inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
-
 ---
 
 ### 4. Architecture Type 4: Hardware Electrical & Wiring Architecture
@@ -87,8 +74,6 @@ Specifies low-voltage microcontroller logic and high-voltage AC mains wiring:
 * **Control side**: Arduino Uno Digital Pins 2–6 switch the active-low opto-isolated relay lines. Analog Pin A0 reads current telemetry from the ACS712 sensor.
 * **Direct Analog Input**: The ACS712 outputs `0V - 5V` directly. Because the Arduino Uno's ATmega328P ADC is 5V-tolerant, **no voltage divider is needed**, and the sensor output connects directly to the Arduino's analog input pin (A0).
 * **AC mains side**: 220V AC Live passes through the ACS712 current sensor, linking in parallel to the COM pins of the relays. Normally Open (NO) pins connect to the active loads (lights and fans) returning to AC Neutral.
-
-*Refer to the sixth block inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
 
 ---
 
