@@ -22,11 +22,7 @@ It features:
 
 ## 🚀 System Architecture
 
-Chrono Office integrates **4 distinct architectural patterns** across its hardware and software layers, illustrated by the embedded UML diagrams below:
-
----
-
-### 1. Architecture Type 1: High-Level System & Deployment Architecture
+### High-Level System & Deployment Architecture
 The system layout uses a client-server and publish-subscribe topology:
 * **Client Layer**: Web Dashboard (Next.js) showing live meters/controls, and the Discord client interface.
 * **Bot Layer**: Discord Bot (Node.js) hosted on Render Cloud, polling metrics and subscribing to active alert triggers.
@@ -36,86 +32,6 @@ The system layout uses a client-server and publish-subscribe topology:
 * **Edge / Simulation Layer**: Room nodes (Arduino Uno controllers) or the local Node.js simulator runner pushing telemetry states.
 
 ![High-Level Deployment Architecture](uml/1.png)
-
----
-
-### 2. Architecture Type 2: Database & Data Schema Architecture
-The relational database layer runs on Supabase (PostgreSQL), structured with indexing for high-frequency writes:
-* **Rooms Table**: Tracks drawing-room, work-room-1, and work-room-2.
-* **Devices Table**: Holds status, type (light/fan), and nominal wattage for all 15 devices.
-* **Device History Table**: Captures transition timestamps (ON to OFF, and vice-versa) for state tracking.
-* **Alerts Table**: Deduplicates alerts (enforcing uniqueness of active alerts per room/type).
-* **Consumption Logs Table**: Stores historical hourly records for energy usage (kWh) and BDT cost.
-
-![Database Schema ERD](uml/2.png)
-
----
-
-### 3. Architecture Type 3: Low-Level Software Architecture
-Details the code component structure, service modules, and logical sequence flows:
-* **API Endpoints**: Structured Next.js route handlers invoking business services.
-* **Services Layer**: Modular classes (`DeviceService`, `AlertService`, `PowerService`, `ConsumptionService`) encapsulating database access.
-* **Telemetry Flow**: The Edge node updates DB states and triggers `evaluateAlerts()`. If an anomaly occurs (After Hours or >2 hours continuous ON), the alert is inserted and broadcasted to the Discord Bot over a WebSocket channel.
-* **Conversational LLM Chat Flow**: Reconstructs database state context and forwards it to the LLM completion API.
-
-#### A. Software Component Layering (Component Diagram)
-![Software Component Layering](uml/3.png)
-
-#### B. Device Status Update & Alert Logic Sequence Flow
-![Device Status Update and Alert Loop Sequence Flow](uml/4.png)
-
-#### C. Discord Bot Mention & Conversational LLM Chat Flow
-![Discord Bot LLM Flow Sequence Flow](uml/5.png)
-
----
-
-### 4. Architecture Type 4: Hardware Electrical & Wiring Architecture
-Specifies low-voltage microcontroller logic and high-voltage AC mains wiring:
-* **Control side**: Arduino Uno Digital Pins 2–6 switch the active-low opto-isolated relay lines. Analog Pin A0 reads current telemetry from the ACS712 sensor.
-* **Direct Analog Input**: The ACS712 outputs `0V - 5V` directly. Because the Arduino Uno's ATmega328P ADC is 5V-tolerant, **no voltage divider is needed**, and the sensor output connects directly to the Arduino's analog input pin (A0).
-* **AC mains side**: 220V AC Live passes through the ACS712 current sensor, linking in parallel to the COM pins of the relays. Normally Open (NO) pins connect to the active loads (lights and fans) returning to AC Neutral.
-
----
-
-### 2. Electrical Wiring & Circuit Configuration
-
-#### Low-Voltage DC Control System
-1. **Power Supply**: Connect the Arduino Uno **5V** or **VIN** pin to a regulated **5V DC** source. The `VCC` input pins of both the **5-Channel Relay Module** and the **ACS712 Current Sensor** must connect to this 5V line.
-2. **Common Ground**: Connect the Arduino Uno **GND** pin to the `GND` pins of the Relay Module and the ACS712 sensor.
-3. **Relay Control**: Connect Digital Pins **2, 3, 4, 5, and 6** on the Arduino to Relay inputs **IN 1, IN 2, IN 3, IN 4, and IN 5** respectively. (Relays switch on an Active-Low signal).
-4. **Current Sensor**: Connect the ACS712 `OUT` pin directly to **Analog Input Pin A0**.
-
-#### High-Voltage AC Power System (220V AC Mains)
-1. **Live Line Current Path**: Connect the high-voltage **AC Live line** to the `IP+` screw terminal of the ACS712 Current Sensor.
-2. **Common Bus Feed**: Connect the sensor's `IP-` output terminal to the **Common (COM)** terminals of all 5 relays in parallel.
-3. **Load Terminals**: Connect the **Normally Open (NO)** terminal of:
-   * Relay 1 to the Live wire of **Fan 1**
-   * Relay 2 to the Live wire of **Fan 2**
-   * Relay 3 to the Live wire of **Light 1**
-   * Relay 4 to the Live wire of **Light 2**
-   * Relay 5 to the Live wire of **Light 3**
-4. **Neutral Return Line**: Connect the Neutral wires of all 5 devices back to the main **AC Neutral Line** to close the high-voltage circuit.
-
----
-
-### 3. Scaling Options (Multi-Room Architecture)
-
-#### Option A: Distributed Architecture (Recommended)
-Each room has an independent **Arduino Uno controller**, a **5-channel relay**, and a **current sensor**. The nodes report telemetry to the server via an external Wi-Fi shield (such as an ESP8266 or ESP-01) or operate as serial nodes connected to local gateway PCs.
-* **Pros**: Isolates electrical faults locally; limits high-voltage wiring length through walls.
-* **Cons**: Requires 3 microcontrollers.
-
-#### Option B: Centralized Node Architecture (Single Arduino Uno)
-A single central Arduino Uno controls all 15 devices across the office. Since a standard Arduino Uno only features 14 digital I/O pins (with pins 0 and 1 reserved for serial TX/RX), a **MCP23017 GPIO Expander** is added on the I2C bus (SDA/SCL) to provide 16 digital ports for the relays. Analog input pins **A0, A1, and A2** read the current sensors for each room.
-
-| Room | Component | Type | Microcontroller Pin Connection |
-| :--- | :--- | :--- | :--- |
-| **Drawing Room** | Fan 1 / Fan 2 / Light 1 / Light 2 / Light 3 | Outputs | **MCP23017 Port GPA0 – GPA4** |
-| | Current Sensor | Analog input | **Arduino Pin A0** |
-| **Work Room 1** | Fan 1 / Fan 2 / Light 1 / Light 2 / Light 3 | Outputs | **MCP23017 Port GPA5 – GPB1** |
-| | Current Sensor | Analog input | **Arduino Pin A1** |
-| **Work Room 2** | Fan 1 / Fan 2 / Light 1 / Light 2 / Light 3 | Outputs | **MCP23017 Port GPB2 – GPB6** |
-| | Current Sensor | Analog input | **Arduino Pin A2** |
 
 ---
 
@@ -310,20 +226,7 @@ Collects status updates from room nodes, applies simulated transitions, and runs
 
 The Discord bot acts as a smart companion, listening to active alert states and offering conversational support.
 
-### 1. Alert Notifications
-The bot connects to Supabase Realtime alerts. When a new alert record with `active: true` is inserted:
-1. The bot captures the event.
-2. It reformats the notification through the `conversationalize` helper.
-3. It posts the message to the configured `#alerts` channel.
-
-### 2. Conversational LLM Chat (Direct Mentions)
-When the bot is mentioned (e.g. `@ChronoBot Are the lights off?`):
-* It executes parallel API fetches to gather all live device statuses, active alerts, total power load, voltage, and today's energy usage.
-* It injects this live data into a specialized System Prompt containing facts about the office environment (rooms, working hours, employee directory).
-* It prompts NVIDIA NIM (model: `nvidia/nemotron-3-super-120b-a12b`) or fallback Google Gemini (`gemini-2.5-flash`) to generate a direct response.
-* **Conversational Policy**: The AI is strictly guided to answer in 1-3 sentences or clean bullet points using only the provided facts, avoiding speculation about employee actions (e.g., it will not say "perhaps they popped out").
-
-### 3. Command Console
+### Command Console
 You can query status using manual prefix commands:
 
 * `!help`: Displays a list of all commands.
