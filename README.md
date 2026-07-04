@@ -37,41 +37,41 @@ This diagram describes the physical and hosted nodes of the system and how they 
 ```mermaid
 flowchart TB
     subgraph ClientLayer ["Client Layer"]
-        Dashboard["Web Dashboard (Next.js)"]
+        Dashboard["Web Dashboard - Next.js"]
         DiscordClient["Discord User Interface"]
     end
 
     subgraph BotLayer ["Bot Layer"]
-        DiscordBot["Discord Bot (Node.js)"]
+        DiscordBot["Discord Bot - Node.js"]
     end
 
     subgraph ApiLayer ["Backend Layer"]
-        Backend["Backend API (Next.js Serverless)"]
+        Backend["Backend API - Next.js Serverless"]
     end
 
     subgraph DBStore ["Database Layer"]
-        DB[("PostgreSQL Database (Supabase)")]
+        DB[(PostgreSQL Database - Supabase)]
     end
 
     subgraph AIProviders ["AI Services"]
-        LLM["LLM Model (Nemotron / Gemini)"]
+        LLM["LLM Model - Nemotron or Gemini"]
     end
 
-    subgraph EdgeLayer ["Office Environment (Edge / Simulator)"]
-        ESP32Firmware["Room Controller Firmware (ESP32)"]
-        Simulator["Hardware Simulator (runner.ts)"]
+    subgraph EdgeLayer ["Office Environment - Edge or Simulator"]
+        ESP32Firmware["Room Controller Firmware - ESP32"]
+        Simulator["Hardware Simulator - runner.ts"]
     end
 
     %% Interactions
     Dashboard -->|REST API requests| Backend
     Dashboard -.->|Supabase Realtime WebSockets| DB
-    DiscordClient -->|Slash Commands & Mentions| DiscordBot
+    DiscordClient -->|Slash Commands and Mentions| DiscordBot
     DiscordBot -->|REST API requests| Backend
     DiscordBot -.->|Supabase Realtime Alerts WebSockets| DB
     DiscordBot -->|Conversational Prompting| LLM
     ESP32Firmware -->|POST /api/hardware/report| Backend
-    Simulator -->|POST /api/hardware/report & /api/consumption/report| Backend
-    Backend -->|PostgreSQL Queries & RPCs| DB
+    Simulator -->|POST /api/hardware/report and /api/consumption/report| Backend
+    Backend -->|PostgreSQL Queries and RPCs| DB
 ```
 
 ---
@@ -146,22 +146,22 @@ This section details the internal code layer structure of the Backend API, Web D
 
 ```mermaid
 flowchart TD
-    subgraph BackendComponent ["Backend API & Services"]
+    subgraph BackendComponent ["Backend API and Services"]
         direction TB
-        subgraph API_Routes ["API Routes (app/api/)"]
-            R_Power["power/route.ts (GET)"]
-            R_Alerts["alerts/route.ts (GET)"]
-            R_Devices["devices/route.ts (GET)"]
-            R_History["devices/history/route.ts (GET)"]
-            R_Toggle["devices/toggle/route.ts (POST - 403)"]
-            R_Report["hardware/report/route.ts (POST)"]
-            R_Cons["consumption/route.ts (GET)"]
-            R_ConsLog["consumption/logs/route.ts (GET)"]
-            R_ConsRep["consumption/report/route.ts (POST)"]
-            R_ConsBreak["consumption/breakdown/route.ts (GET)"]
+        subgraph API_Routes ["API Routes - app/api/"]
+            R_Power["power/route.ts - GET"]
+            R_Alerts["alerts/route.ts - GET"]
+            R_Devices["devices/route.ts - GET"]
+            R_History["devices/history/route.ts - GET"]
+            R_Toggle["devices/toggle/route.ts - POST 403"]
+            R_Report["hardware/report/route.ts - POST"]
+            R_Cons["consumption/route.ts - GET"]
+            R_ConsLog["consumption/logs/route.ts - GET"]
+            R_ConsRep["consumption/report/route.ts - POST"]
+            R_ConsBreak["consumption/breakdown/route.ts - GET"]
         end
 
-        subgraph Services ["Services Layer (src/services/)"]
+        subgraph Services ["Services Layer - src/services/"]
             S_Device["DeviceService"]
             S_Alert["AlertService"]
             S_Power["PowerService"]
@@ -174,8 +174,8 @@ flowchart TD
 
     subgraph BotComponent ["Discord Bot Component"]
         direction TB
-        Bot_Main["bot.ts (Main Loop)"]
-        Bot_LLM["LLM Integration (NVIDIA / Gemini)"]
+        Bot_Main["bot.ts - Main Loop"]
+        Bot_LLM["LLM Integration - NVIDIA or Gemini"]
         Bot_Http["Keep-Alive HTTP Server"]
 
         Bot_Main --> Bot_LLM
@@ -184,14 +184,14 @@ flowchart TD
 
     subgraph WebComponent ["Web Dashboard Component"]
         direction TB
-        Page_Main["page.tsx (Main Panel)"]
+        Page_Main["page.tsx - Main Panel"]
         Page_Layout["layout.tsx"]
         Lib_Types["lib/types.ts"]
 
         Page_Main --> Lib_Types
     end
 
-    BackendComponent -->|Supabase Client| DB_Sub[("PostgreSQL DB")]
+    BackendComponent -->|Supabase Client| DB_Sub[(PostgreSQL DB)]
     BotComponent -->|Fetch REST APIs| BackendComponent
     BotComponent -->|Supabase Realtime| DB_Sub
     WebComponent -->|Fetch REST APIs| BackendComponent
@@ -203,8 +203,8 @@ flowchart TD
 ```mermaid
 sequenceDiagram
   autonumber
-  participant HW as "ESP32 / Simulator"
-  participant API as "Backend API (/api/hardware/report)"
+  participant HW as "ESP32 or Simulator"
+  participant API as "Backend API - Hardware Report"
   participant DS as "DeviceService"
   participant AS as "AlertService"
   participant DB as "Supabase PostgreSQL"
@@ -218,7 +218,7 @@ sequenceDiagram
   DS->>DB: Fetch current status
   DB-->>DS: Status value
   alt Status changed
-    DS->>DB: UPDATE devices & INSERT history
+    DS->>DB: UPDATE devices and INSERT history
   end
   deactivate DS
   
@@ -228,30 +228,30 @@ sequenceDiagram
     AS->>DS: getDevicesByRoom()
     DS-->>AS: List of devices
     
-    alt Is After Hours & device is ON
-      AS->>AS: triggerAlert('after_hours')
-      AS->>DB: INSERT INTO alerts (active = true)
+    alt Is After Hours and device is ON
+      AS->>AS: triggerAlert after_hours
+      AS->>DB: INSERT INTO alerts
       DB-->>Bot: Realtime INSERT Broadcast
       activate Bot
       Bot->>Bot: conversationalize()
       Bot->>Disc: Send Alert Embed Msg
       deactivate Bot
     else Inside Working Hours or all devices OFF
-      AS->>AS: resolveAlert('after_hours')
-      AS->>DB: UPDATE alerts (active = false)
+      AS->>AS: resolveAlert after_hours
+      AS->>DB: UPDATE alerts active=false
     end
     
-    alt All devices ON continuously for > 2 hours
-      AS->>AS: triggerAlert('continuous_usage')
-      AS->>DB: INSERT INTO alerts (active = true)
+    alt All devices ON continuously for more than 2 hours
+      AS->>AS: triggerAlert continuous_usage
+      AS->>DB: INSERT INTO alerts
       DB-->>Bot: Realtime INSERT Broadcast
       activate Bot
       Bot->>Bot: conversationalize()
       Bot->>Disc: Send Alert Embed Msg
       deactivate Bot
     else At least one device is OFF
-      AS->>AS: resolveAlert('continuous_usage')
-      AS->>DB: UPDATE alerts (active = false)
+      AS->>AS: resolveAlert continuous_usage
+      AS->>DB: UPDATE alerts active=false
     end
   end
   deactivate AS
@@ -265,12 +265,12 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   autonumber
-  actor User as "Boss (User)"
+  actor User as "Boss User"
   participant Bot as "Discord Bot"
   participant API as "Backend API"
-  participant AI as "NVIDIA NIM / Gemini API"
+  participant AI as "NVIDIA NIM or Gemini API"
 
-  User->>Bot: Mention "@ChronoBot status request"
+  User->>Bot: Mention ChronoBot status request
   activate Bot
   
   Note over Bot: Gather system context in parallel
@@ -286,7 +286,7 @@ sequenceDiagram
   AI-->>Bot: Factual response
   deactivate AI
   
-  Bot->>Bot: Format response (conversationalize)
+  Bot->>Bot: Format response
   Bot-->>User: Reply message in Discord
   deactivate Bot
 ```
@@ -304,14 +304,14 @@ A central room controller coordinates power switching and current logging.
 ```mermaid
 flowchart TD
     subgraph ESP32_Node ["ESP32 Microcontroller"]
-        Pin_VIN["VIN (5V DC Input)"]
-        Pin_GND["GND (Common Ground)"]
-        Pin_G12["GPIO 12 (Out: Fan 1)"]
-        Pin_G13["GPIO 13 (Out: Fan 2)"]
-        Pin_G14["GPIO 14 (Out: Light 1)"]
-        Pin_G15["GPIO 15 (Out: Light 2)"]
-        Pin_G16["GPIO 16 (Out: Light 3)"]
-        Pin_G34["GPIO 34 (ADC Input: Current)"]
+        Pin_VIN["VIN - 5V DC Input"]
+        Pin_GND["GND - Common Ground"]
+        Pin_G12["GPIO 12 - Out: Fan 1"]
+        Pin_G13["GPIO 13 - Out: Fan 2"]
+        Pin_G14["GPIO 14 - Out: Light 1"]
+        Pin_G15["GPIO 15 - Out: Light 2"]
+        Pin_G16["GPIO 16 - Out: Light 3"]
+        Pin_G34["GPIO 34 - ADC Input: Current"]
     end
 
     subgraph Relays ["5-Channel Relay Module"]
@@ -322,7 +322,7 @@ flowchart TD
         R_IN3["IN 3"]
         R_IN4["IN 4"]
         R_IN5["IN 5"]
-        R_COM["COM (Common AC Live input)"]
+        R_COM["COM - Common AC Live input"]
         R_NO1["Normally Open 1"]
         R_NO2["Normally Open 2"]
         R_NO3["Normally Open 3"]
@@ -333,15 +333,15 @@ flowchart TD
     subgraph Sensor ["ACS712 Current Sensor"]
         S_VCC["VCC"]
         S_GND["GND"]
-        S_OUT["OUT (Analog Output)"]
+        S_OUT["OUT - Analog Output"]
         IP_Plus["IP+ terminal"]
         IP_Minus["IP- terminal"]
     end
 
-    subgraph Div ["Voltage Divider (ADC Protection)"]
+    subgraph Div ["Voltage Divider - ADC Protection"]
         R1["Resistor 10 kOhm"]
         R2["Resistor 20 kOhm"]
-        Junc["Junction Point (2/3 Scale)"]
+        Junc["Junction Point - 2/3 Scale"]
     end
 
     subgraph AC_Loads ["220V AC Devices"]
