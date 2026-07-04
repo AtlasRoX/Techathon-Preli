@@ -514,13 +514,16 @@ export default function Dashboard() {
           <div className="lg:col-span-8 flex flex-col min-h-0 justify-center items-center relative select-none">
             
             {/* Layout Blueprint Image Container */}
-            <div className="relative w-full h-full select-none" style={{ aspectRatio: '1536/1024' }}>
+            <div 
+              className="absolute inset-0 m-auto w-auto h-auto max-w-full max-h-full select-none" 
+              style={{ aspectRatio: '1536/1024' }}
+            >
               
               {/* Floor Plan Background Image - Original Blueprint */}
               <img 
                 src="/room%20assets/house%20layout%20without%20light%20and%20fan.png" 
                 alt="Office Layout Background" 
-                className="absolute inset-0 w-full h-full object-contain opacity-95 select-none"
+                className="w-full h-full opacity-95 select-none"
               />
 
               {/* Room Hover Triggers */}
