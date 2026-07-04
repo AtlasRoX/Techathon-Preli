@@ -1,0 +1,44 @@
+# Dependencies
+**/node_modules/
+**/.pnp
+.pnp.*
+
+# Next.js build output
+**/.next/
+**/out/
+
+# Production builds
+**/build/
+**/dist/
+
+# Local environment variables and secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+**/.env*
+!**/.env.example
+
+# Debug and Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
+# Editor and System files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Simulator runtime state
+simulation_state.json
+
+# IDE / Agent specific files
+**/AGENTS.md
+**/CLAUDE.md

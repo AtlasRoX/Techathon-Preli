@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Office Coordinates Picker</title>
+  <style>
+    body {
+      background-color: #0f172a;
+      color: #e2e8f0;
+      font-family: monospace;
+      margin: 20px;
+    }
+    .container {
+      position: relative;
+      display: inline-block;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      border: 2px solid #334155;
+    }
+    #coords {
+      margin-top: 10px;
+      font-size: 16px;
+      background: #1e293b;
+      padding: 10px;
+      border-radius: 6px;
+    }
+    .marker {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: red;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Click on the lights and fans to get exact coordinates</h1>
+  <div class="container" id="container">
+    <!-- Load the image directly from public/room assets -->
+    <img id="layout" src="/room assets/house layout with light and fan.png" alt="Office Layout">
+  </div>
+  <div id="coords">Click on the image to see coordinates.</div>
+
+  <script>
+    const img = document.getElementById('layout');
+    const container = document.getElementById('container');
+    const coordsDiv = document.getElementById('coords');
+    
+    img.addEventListener('click', function(e) {
+      // Get click position relative to the image
+      const rect = img.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // Calculate coordinates relative to the natural size (1536x1024)
+      const naturalX = (x / rect.width) * img.naturalWidth;
+      const naturalY = (y / rect.height) * img.naturalHeight;
+      
+      coordsDiv.innerHTML = `Clicked at: X=${Math.round(naturalX)}, Y=${Math.round(naturalY)} (Relative: x=${Math.round(x)}, y=${Math.round(y)})`;
+      
+      // Add a visual marker
+      const marker = document.createElement('div');
+      marker.className = 'marker';
+      marker.style.left = x + 'px';
+      marker.style.top = y + 'px';
+      container.appendChild(marker);
+      
+      console.log(`X: ${Math.round(naturalX)}, Y: ${Math.round(naturalY)}`);
+    });
+  </script>
+</body>
+</html>
