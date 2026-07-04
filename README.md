@@ -22,13 +22,24 @@ It features:
 
 ## 🚀 System Architecture
 
-Chrono Office integrates **4 distinct architectural patterns** across its hardware and software layers. The complete UML models for all layers are defined using PlantUML syntax in the workspace file [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).
+Chrono Office integrates **4 distinct architectural patterns** across its hardware and software layers. The complete UML models for all layers are defined using PlantUML syntax.
 
 ### 🔍 How to View and Render the UML Diagrams
-You can view, edit, or compile the UML diagrams using:
-1. **VS Code Extensions**: Install the *PlantUML* extension (by Jebbs) and press `Alt + D` to preview any diagram live.
-2. **PlantUML Online Web Server**: Copy and paste the contents of [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml) into [http://www.plantuml.com/plantuml](http://www.plantuml.com/plantuml) to render them instantly.
-3. **Local CLI Compilation**: Run the PlantUML JAR compiler to generate `.png` or `.svg` images.
+We provide both a master PlantUML file containing all diagrams, as well as separate, standalone files for each view (highly recommended for compatibility with older compilers).
+
+* **Master UML File**: [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml)
+* **Modular UML Files (by type)**:
+  1. **Deployment Architecture**: [uml/1_high_level_deployment.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/1_high_level_deployment.puml)
+  2. **Database ERD**: [uml/2_database_erd.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/2_database_erd.puml)
+  3. **Low-Level Component Layering**: [uml/3_low_level_components.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/3_low_level_components.puml)
+  4. **Telemetry & Alert Sequence Flow**: [uml/4_sequence_telemetry_alerts.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/4_sequence_telemetry_alerts.puml)
+  5. **Discord LLM Chat Sequence Flow**: [uml/5_sequence_discord_llm_chat.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/5_sequence_discord_llm_chat.puml)
+  6. **Hardware Connection Wiring**: [uml/6_hardware_connections.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/6_hardware_connections.puml)
+
+#### Render Instructions:
+1. **VS Code Extensions**: Install the *PlantUML* extension (by Jebbs) and press `Alt + D` inside any `.puml` file to preview it live.
+2. **PlantUML Online Web Server**: Copy and paste the contents of any `.puml` file into [http://www.plantuml.com/plantuml](http://www.plantuml.com/plantuml) to render it instantly.
+3. **Local CLI Compilation**: Run `java -jar plantuml.jar <filename>.puml` to output a `.png` image of the diagram.
 
 ---
 
@@ -41,7 +52,7 @@ The system layout uses a client-server and publish-subscribe topology:
 * **AI Layer**: NVIDIA NIM / Google Gemini APIs returning factual, conversational status summaries when the bot is queried.
 * **Edge / Simulation Layer**: Room nodes (ESP32 controllers) or the local Node.js simulator runner pushing telemetry states.
 
-*Refer to the `@startuml high_level_deployment` block inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
+*Refer to: [uml/1_high_level_deployment.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/1_high_level_deployment.puml)*
 
 ---
 
@@ -53,7 +64,7 @@ The relational database layer runs on Supabase (PostgreSQL), structured with ind
 * **Alerts Table**: Deduplicates alerts (enforcing uniqueness of active alerts per room/type).
 * **Consumption Logs Table**: Stores historical hourly records for energy usage (kWh) and BDT cost.
 
-*Refer to the `@startuml database_erd` block inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
+*Refer to: [uml/2_database_erd.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/2_database_erd.puml)*
 
 ---
 
@@ -64,7 +75,7 @@ Details the code component structure, service modules, and logical sequence flow
 * **Telemetry Flow**: The Edge node updates DB states and triggers `evaluateAlerts()`. If an anomaly occurs (After Hours or >2 hours continuous ON), the alert is inserted and broadcasted to the Discord Bot over a WebSocket channel.
 * **Conversational LLM Chat Flow**: Reconstructs database state context and forwards it to the LLM completion API.
 
-*Refer to the `@startuml low_level_components`, `@startuml sequence_telemetry_alerts`, and `@startuml sequence_discord_llm_chat` blocks inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
+*Refer to: [uml/3_low_level_components.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/3_low_level_components.puml), [uml/4_sequence_telemetry_alerts.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/4_sequence_telemetry_alerts.puml), and [uml/5_sequence_discord_llm_chat.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/5_sequence_discord_llm_chat.puml)*
 
 ---
 
@@ -74,7 +85,7 @@ Specifies low-voltage microcontroller logic and high-voltage AC mains wiring:
 * **Voltage Divider**: Scales ACS712 output (0-5V) by 2/3 using a 10k/20k resistor network to protect the ESP32's 3.3V ADC pin.
 * **AC mains side**: 220V AC Live passes through the ACS712 current sensor, linking in parallel to the COM pins of the relays. Normally Open (NO) pins connect to the active loads (lights and fans) returning to AC Neutral.
 
-*Refer to the `@startuml hardware_connections` block inside [architecture.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/architecture.puml).*
+*Refer to: [uml/6_hardware_connections.puml](file:///x:/09_Team ChronoSrider/Projects/IUT/uml/6_hardware_connections.puml)*
 
 ---
 

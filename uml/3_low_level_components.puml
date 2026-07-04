@@ -1,0 +1,54 @@
+@startuml
+title Architecture Type 3: Low-Level Software Components
+
+package "Backend Next.js API" {
+    package "API Routes" {
+        [power/route.ts] as R_Power
+        [alerts/route.ts] as R_Alerts
+        [devices/route.ts] as R_Devices
+        [devices/history/route.ts] as R_History
+        [devices/toggle/route.ts] as R_Toggle
+        [hardware/report/route.ts] as R_Hardware
+        [consumption/route.ts] as R_Cons
+        [consumption/logs/route.ts] as R_ConsLogs
+        [consumption/report/route.ts] as R_ConsRep
+        [consumption/breakdown/route.ts] as R_ConsBreak
+    }
+
+    package "Services Layer" {
+        [DeviceService] as S_Device
+        [AlertService] as S_Alert
+        [PowerService] as S_Power
+        [ConsumptionService] as S_Cons
+        [RoomService] as S_Room
+    }
+    
+    API_Routes --> ServicesLayer
+}
+
+package "Discord Bot" {
+    [bot.ts] as Bot_Main
+    [LLM Client] as Bot_LLM
+    [Keep-Alive Server] as Bot_Http
+    
+    Bot_Main --> Bot_LLM
+    Bot_Main --> Bot_Http
+}
+
+package "Web Dashboard" {
+    [page.tsx] as Web_Page
+    [layout.tsx] as Web_Layout
+    [lib/types.ts] as Web_Types
+    
+    Web_Page --> Web_Types
+}
+
+database "PostgreSQL" as DB
+
+BackendNextjsAPI --> DB : "Supabase JS SDK"
+DiscordBot --> BackendNextjsAPI : "HTTP Fetch"
+DiscordBot ..> DB : "Realtime WebSockets"
+WebDashboard --> BackendNextjsAPI : "HTTP Fetch"
+WebDashboard ..> DB : "Realtime WebSockets"
+
+@enduml

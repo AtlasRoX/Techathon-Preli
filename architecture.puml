@@ -1,4 +1,4 @@
-@startuml high_level_deployment
+@startuml
 title Architecture Type 1: High-Level System & Deployment Architecture
 
 node "Client Browser" {
@@ -46,7 +46,7 @@ Backend --> DB : "Queries & RPCs"
 
 @enduml
 
-@startuml database_erd
+@startuml
 title Architecture Type 2: Database Schema & Entity Relationships
 
 ' hide the spot
@@ -107,7 +107,7 @@ devices ||--o{ device_history : "logs status changes"
 
 @enduml
 
-@startuml low_level_components
+@startuml
 title Architecture Type 3: Low-Level Software Components
 
 package "Backend Next.js API" {
@@ -162,7 +162,7 @@ WebDashboard ..> DB : "Realtime WebSockets"
 
 @enduml
 
-@startuml sequence_telemetry_alerts
+@startuml
 title Software Interaction Sequence: Device Telemetry & Alert Loop
 
 actor "ESP32 / Simulator" as HW
@@ -224,7 +224,7 @@ deactivate API
 
 @enduml
 
-@startuml sequence_discord_llm_chat
+@startuml
 title Software Interaction Sequence: Discord Bot Conversational LLM Flow
 
 actor "User (Boss)" as User
@@ -254,7 +254,7 @@ deactivate Bot
 
 @enduml
 
-@startuml hardware_connections
+@startuml
 title Architecture Type 4: Hardware Circuit & Connections Layout
 
 package "Low Voltage Control (DC 5V)" {
